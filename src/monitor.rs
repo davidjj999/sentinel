@@ -1,7 +1,8 @@
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
+use sysinfo::{Components, CpuRefreshKind, MemoryRefreshKind, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
 pub struct SystemMonitor {
     sys: System,
+    components: Components,
 }
 
 impl SystemMonitor {
@@ -9,24 +10,22 @@ impl SystemMonitor {
         let sys = System::new_with_specifics(
             RefreshKind::nothing()
                 .with_cpu(CpuRefreshKind::everything())
-                .with_memory(MemoryRefreshKind::everything()),
+                .with_memory(MemoryRefreshKind::everything())
+                .with_processes(ProcessRefreshKind::everything()),
         );
-        Self { sys }
+        let components = Components::new_with_refreshed_list();
+        Self { sys, components }
     }
 
     pub fn get_stats(&mut self) -> String {
         // Refresh triggers data collection
         self.sys.refresh_cpu_all();
         self.sys.refresh_memory();
+        self.sys.refresh_processes(ProcessesToUpdate::All, true);
+        self.components.refresh(true);
 
         let cpu_count = self.sys.cpus().len();
         let global_cpu_usage = self.sys.global_cpu_usage();
-        
-        // Calculate average CPU usage if global isn't sufficient or for more detail
-        // But global_cpu_info() is usually good.
-        // Actually, refresh_cpu() updates all cpus. global_cpu_info might not be populated in all versions automatically?
-        // Let's use the average of all CPUs for safety or just the global one if available.
-        // In sysinfo 0.30+, global_cpu_info() works well.
 
         let total_memory = self.sys.total_memory() / 1024 / 1024; // MB
         let used_memory = self.sys.used_memory() / 1024 / 1024; // MB
@@ -37,6 +36,24 @@ impl SystemMonitor {
         let uptime_hours = uptime / 3600;
         let uptime_minutes = (uptime % 3600) / 60;
 
+        // Temperature information
+        let mut temp_info = String::from("Temperatures:\n");
+        for component in &self.components {
+            let temp = component.temperature().unwrap_or(0.0);
+            temp_info.push_str(&format!("  {}: {:.1}°C\n", component.label(), temp));
+        }
+        if self.components.is_empty() {
+             temp_info.push_str("  No temperature sensors found.\n");
+        }
+
+        // Top process by CPU
+        let mut top_process_info = String::from("Top Process: None");
+        if let Some((pid, proc)) = self.sys.processes().iter().max_by(|(_, a), (_, b)| {
+            a.cpu_usage().partial_cmp(&b.cpu_usage()).unwrap_or(std::cmp::Ordering::Equal)
+        }) {
+            top_process_info = format!("Top Process: {} (PID: {}) - {:.1}% CPU", proc.name().to_string_lossy(), pid, proc.cpu_usage());
+        }
+
         format!(
             "System Report:\n\
             Uptime: {}h {}m\n\
@@ -45,7 +62,9 @@ impl SystemMonitor {
             Memory: {} / {} MB (Used/Total)\n\
             Swap: {} / {} MB\n\
             Hostname: {}\n\
-            OS: {} {}",
+            OS: {} {}\n\
+            {}\n\
+            {}",
             uptime_hours, uptime_minutes,
             global_cpu_usage,
             cpu_count,
@@ -53,7 +72,10 @@ impl SystemMonitor {
             used_swap, total_swap,
             System::host_name().unwrap_or_else(|| "Unknown".to_string()),
             System::name().unwrap_or_else(|| "Unknown".to_string()),
-            System::os_version().unwrap_or_else(|| "".to_string())
+            System::os_version().unwrap_or_else(|| "".to_string()),
+            temp_info.trim_end(), // Remove trailing newline from temp loop
+            top_process_info
         )
     }
 }
+
