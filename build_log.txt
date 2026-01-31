@@ -1,0 +1,29 @@
+    Checking sentinel v0.1.0 (/home/djohnson/Projects/sentinal/sentinel)
+error[E0277]: the trait bound `std::string::String: From<Vec<std::string::String>>` is not satisfied
+   --> src/main.rs:43:76
+    |
+ 43 |         .custom_tag(nostr::SingleLetterTag::lowercase(nostr::Alphabet::P), vec![nostr.get_public_key().to_hex()]);
+    |          ---------- required by a bound introduced by this call            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `From<Vec<std::string::String>>` is not implemented for `std::string::String`
+    |
+    = help: the following other types implement trait `From<T>`:
+              `std::string::String` implements `From<&mut str>`
+              `std::string::String` implements `From<&std::string::String>`
+              `std::string::String` implements `From<&str>`
+              `std::string::String` implements `From<Box<str>>`
+              `std::string::String` implements `From<Cow<'_, str>>`
+              `std::string::String` implements `From<char>`
+              `std::string::String` implements `From<iri_string::template::string::owned::UriTemplateString>`
+              `std::string::String` implements `From<iri_string::types::generic::absolute::RiAbsoluteString<S>>`
+            and 8 others
+    = note: required for `Vec<std::string::String>` to implement `Into<std::string::String>`
+note: required by a bound in `nostr_sdk::Filter::custom_tag`
+   --> /home/djohnson/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/nostr-0.44.2/src/filter.rs:819:12
+    |
+817 |     pub fn custom_tag<S>(self, tag: SingleLetterTag, value: S) -> Self
+    |            ---------- required by a bound in this associated function
+818 |     where
+819 |         S: Into<String>,
+    |            ^^^^^^^^^^^^ required by this bound in `Filter::custom_tag`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `sentinel` (bin "sentinel") due to 1 previous error

@@ -1,0 +1,17 @@
+[package]
+name = "sentinel"
+version = "0.1.0"
+edition = "2024"
+default-run = "sentinel"
+
+[dependencies]
+chrono = "0.4.43"
+dotenvy = "0.15.7"
+nostr-sdk = "0.44.1"
+nostr = { version = "0.44.2", features = ["nip04", "nip59", "std"] }
+reqwest = { version = "0.13.1", features = ["json"] }
+serde = "1.0.228"
+serde_json = "1.0.149"
+sysinfo = "0.38.0"
+tokio = { version = "1.49.0", features = ["full"] }
+rustls = { version = "0.23", features = ["ring"] }
