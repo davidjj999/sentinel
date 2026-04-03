@@ -17,6 +17,25 @@ impl SystemMonitor {
         Self { sys, components }
     }
 
+    fn get_bitcoind_logs(&self) -> Option<String> {
+        use std::process::Command;
+        let output = Command::new("docker")
+            .args(["logs", "--tail", "15", "bitcoind"])
+            .output();
+
+        match output {
+            Ok(o) if o.status.success() => {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                if stdout.trim().is_empty() {
+                    Some("Bitcoind Logs: <empty>".to_string())
+                } else {
+                    Some(format!("Bitcoind Logs:\n{}", stdout.trim()))
+                }
+            }
+            _ => None, // Gracefully handle absence or error
+        }
+    }
+
     pub fn get_stats(&mut self) -> String {
         // Refresh triggers data collection
         self.sys.refresh_cpu_all();
@@ -54,7 +73,7 @@ impl SystemMonitor {
             top_process_info = format!("Top Process: {} (PID: {}) - {:.1}% CPU", proc.name().to_string_lossy(), pid, proc.cpu_usage());
         }
 
-        format!(
+        let mut report = format!(
             "System Report:\n\
             Uptime: {}h {}m\n\
             CPU Usage: {:.2}%\n\
@@ -75,7 +94,14 @@ impl SystemMonitor {
             System::os_version().unwrap_or_else(|| "".to_string()),
             temp_info.trim_end(), // Remove trailing newline from temp loop
             top_process_info
-        )
+        );
+
+        if let Some(logs) = self.get_bitcoind_logs() {
+            report.push_str("\n\n");
+            report.push_str(&logs);
+        }
+
+        report
     }
 }
 

@@ -29,12 +29,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gemini = GeminiClient::new(gemini_key, gemini_model);
     
     println!("Connecting to Nostr Relay Network...");
-    let nostr = NostrEngine::new(&nsec, &target_npub, vec![
-        "wss://relay.damus.io".into(),
-        "wss://relay.primal.net".into(),
-        "wss://nos.lol".into(),
-    ]).await.map_err(|e| e as Box<dyn std::error::Error>)?; 
+    let relays = vec![
+        "wss://relay.damus.io".to_string(),
+        "wss://relay.primal.net".to_string(),
+        "wss://nos.lol".to_string(),
+    ];
+    let nostr = NostrEngine::new(&nsec, &target_npub, relays.clone()).await.map_err(|e| e as Box<dyn std::error::Error>)?; 
     // Cast error to standard error to avoid ? issues
+
+    if let Err(e) = nostr.publish_dm_relay_list(relays).await {
+        eprintln!("Failed to publish relay list: {}", e);
+    } else {
+        println!("DM Relay List (Kind 10050) published successfully.");
+    }
     
     println!("Sentinel Online. Listening for DMs from target user.");
     

@@ -40,15 +40,21 @@ impl NostrEngine {
     }
 
     pub async fn send_dm(&self, content: String) -> Result<EventId, Box<dyn Error + Send + Sync>> {
-        // Use NIP-04 for simplicity and compatibility
-        // Manual encryption since helper is removed
-        let secret_key = self.keys.secret_key();
-        let encrypted_content = nostr::nips::nip04::encrypt(secret_key, &self.target_user, &content)?;
+        // Use NIP-17 private messaging
+        let output = self.client.send_private_msg(self.target_user, content, std::iter::empty::<Tag>()).await?;
+        Ok(*output.id())
+    }
+
+    pub async fn publish_dm_relay_list(&self, relays: Vec<String>) -> Result<EventId, Box<dyn Error + Send + Sync>> {
+        let mut tags: Vec<Tag> = Vec::new();
+        for relay in relays {
+            tags.push(Tag::parse(vec!["relay".to_string(), relay])?);
+        }
         
-        // Build the event
-        let event = EventBuilder::new(Kind::EncryptedDirectMessage, encrypted_content)
-            .tag(Tag::public_key(self.target_user))
-            .sign(&self.keys).await?;
+        let signer = self.client.signer().await?;
+        let event = EventBuilder::new(Kind::Custom(10050), "")
+            .tags(tags)
+            .sign(&signer).await?;
             
         let output = self.client.send_event(&event).await?;
         Ok(*output.id())
