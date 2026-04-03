@@ -8,11 +8,11 @@ pub struct GeminiClient {
 }
 
 impl GeminiClient {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String, model: String) -> Self {
         Self {
             api_key,
             client: reqwest::Client::new(),
-            model: "gemini-3-flash-preview".to_string(),
+            model,
         }
     }
 

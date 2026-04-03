@@ -23,9 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let nsec = env::var("NOSTR_NSEC").expect("NOSTR_NSEC not set in .env");
     let target_npub = env::var("TARGET_NPUB").expect("TARGET_NPUB not set in .env");
     let gemini_key = env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY not set in .env");
+    let gemini_model = env::var("GEMINI_MODEL").unwrap_or_else(|_| "gemini-3-flash-preview".to_string());
     
     let mut monitor = SystemMonitor::new();
-    let gemini = GeminiClient::new(gemini_key);
+    let gemini = GeminiClient::new(gemini_key, gemini_model);
     
     println!("Connecting to Nostr Relay Network...");
     let nostr = NostrEngine::new(&nsec, &target_npub, vec![
