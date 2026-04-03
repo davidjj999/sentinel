@@ -47,8 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let filter = Filter::new()
         .kinds(vec![Kind::EncryptedDirectMessage, Kind::GiftWrap])
-        .since(Timestamp::now())
-        .custom_tag(nostr::SingleLetterTag::lowercase(nostr::Alphabet::P), nostr.get_public_key().to_hex());
+        .since(Timestamp::now() - Duration::from_secs(2 * 86400)) // NIP-59 requires up to 2 days of timestamp obfuscation
+        .pubkeys(vec![nostr.get_public_key()]);
     
     // Subscribe using single filter
     nostr.client().subscribe(filter, None).await?;
@@ -57,6 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut interval = time::interval(Duration::from_secs(12 * 3600));
 
     let mut notifications = nostr.client().notifications();
+    
+    let startup_time = tokio::time::Instant::now();
     
     loop {
         tokio::select! {
@@ -80,7 +82,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             Ok(notification) = notifications.recv() => {
                if let RelayPoolNotification::Event { event, .. } = notification {
-                    handle_event(*event, &nostr, &gemini, &mut monitor).await;
+                    // Ignore historical events during the first few seconds of startup to prevent reply spam
+                    if startup_time.elapsed() > Duration::from_secs(3) {
+                        handle_event(*event, &nostr, &gemini, &mut monitor).await;
+                    }
                }
             }
         }
@@ -98,9 +103,8 @@ async fn handle_event(event: Event, nostr: &NostrEngine, gemini: &GeminiClient, 
                 }
                 process_dm(unwrapped.content, nostr, gemini, monitor).await;
             }
-            Err(_e) => {
-                // eprintln!("Failed to unwrap GiftWrap: {}", e); 
-                // Don't log spam if it's not for us or decryption fails
+            Err(e) => {
+                eprintln!("Failed to unwrap GiftWrap: {:?}", e); 
             }
         }
     } else if event.kind == Kind::EncryptedDirectMessage {
