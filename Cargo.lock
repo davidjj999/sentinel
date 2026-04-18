@@ -1567,6 +1567,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "nostr-sdk",
+ "rand 0.8.5",
  "reqwest",
  "rustls",
  "serde",
