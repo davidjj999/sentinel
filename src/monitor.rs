@@ -17,11 +17,12 @@ impl SystemMonitor {
         Self { sys, components }
     }
 
-    fn get_bitcoind_logs(&self) -> Option<String> {
-        use std::process::Command;
+    async fn get_bitcoind_logs(&self) -> Option<String> {
+        use tokio::process::Command;
         let output = Command::new("docker")
             .args(["logs", "--tail", "15", "bitcoind"])
-            .output();
+            .output()
+            .await;
 
         match output {
             Ok(o) if o.status.success() => {
@@ -36,7 +37,7 @@ impl SystemMonitor {
         }
     }
 
-    pub fn get_stats(&mut self) -> String {
+    pub async fn get_stats(&mut self) -> String {
         // Refresh triggers data collection
         self.sys.refresh_cpu_all();
         self.sys.refresh_memory();
@@ -96,7 +97,7 @@ impl SystemMonitor {
             top_process_info
         );
 
-        if let Some(logs) = self.get_bitcoind_logs() {
+        if let Some(logs) = self.get_bitcoind_logs().await {
             report.push_str("\n\n");
             report.push_str(&logs);
         }

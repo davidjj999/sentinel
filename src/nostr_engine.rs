@@ -1,5 +1,5 @@
 use nostr_sdk::prelude::*;
-use std::error::Error;
+use crate::error::SentinelError;
 
 #[derive(Clone)]
 pub struct NostrEngine {
@@ -10,7 +10,7 @@ pub struct NostrEngine {
 }
 
 impl NostrEngine {
-    pub async fn new(secret_key: &str, target_npub: &str, relays: Vec<String>) -> Result<Self, Box<dyn Error + Send + Sync>> {
+    pub async fn new(secret_key: &str, target_npub: &str, relays: Vec<String>) -> Result<Self, SentinelError> {
         let keys = Keys::parse(secret_key)?;
         let public_key = keys.public_key();
         let client = Client::new(keys.clone());
@@ -35,17 +35,14 @@ impl NostrEngine {
         self.public_key
     }
     
-    pub fn target_user(&self) -> PublicKey {
-        self.target_user
-    }
 
-    pub async fn send_dm(&self, content: String) -> Result<EventId, Box<dyn Error + Send + Sync>> {
+    pub async fn send_dm(&self, content: String) -> Result<EventId, SentinelError> {
         // Use NIP-17 private messaging
         let output = self.client.send_private_msg(self.target_user, content, std::iter::empty::<Tag>()).await?;
         Ok(*output.id())
     }
 
-    pub async fn publish_dm_relay_list(&self, relays: Vec<String>) -> Result<EventId, Box<dyn Error + Send + Sync>> {
+    pub async fn publish_dm_relay_list(&self, relays: Vec<String>) -> Result<EventId, SentinelError> {
         let mut tags: Vec<Tag> = Vec::new();
         for relay in relays {
             tags.push(Tag::parse(vec!["relay".to_string(), relay])?);
@@ -64,21 +61,22 @@ impl NostrEngine {
         &self.client
     }
     
-    pub fn decrypt_nip04(&self, public_key: &PublicKey, content: &str) -> Result<String, Box<dyn Error + Send + Sync>> {
-        let sk = self.keys.secret_key();
-        nostr::nips::nip04::decrypt(sk, public_key, content).map_err(|e| e.into())
-    }
-
-    pub async fn unwrap_gift_wrap(&self, event: &Event) -> Result<UnwrappedGift, Box<dyn Error + Send + Sync>> {
-        let unwrapped = nostr::nips::nip59::extract_rumor(&self.keys, event).await?;
-        Ok(UnwrappedGift {
-            sender: unwrapped.sender,
-            content: unwrapped.rumor.content,
-        })
+    pub async fn try_extract_dm(&self, event: &Event) -> Result<Option<IncomingDm>, SentinelError> {
+        if event.kind == Kind::GiftWrap {
+            let unwrapped = nostr_sdk::nips::nip59::extract_rumor(&self.keys, event).await?;
+            if unwrapped.sender != self.target_user {
+                return Ok(None);
+            }
+            return Ok(Some(IncomingDm {
+                sender: unwrapped.sender,
+                content: unwrapped.rumor.content,
+            }));
+        }
+        Ok(None)
     }
 }
 
-pub struct UnwrappedGift {
+pub struct IncomingDm {
     pub sender: PublicKey,
     pub content: String,
 }
