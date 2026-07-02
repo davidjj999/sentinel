@@ -18,6 +18,7 @@ A Nostr-based System Monitor & Persona Bot.
     - `TARGET_NPUB`: Your personal npub (the bot will only reply to this user).
     - `NOSTR_RELAYS`: Comma-separated list of relays (e.g. `wss://relay.damus.io,wss://nos.lol`).
     - `GEMINI_API_KEY`: Your Google Gemini API Key.
+    - `GEMINI_MODEL`: (Optional) Gemini model to use. Defaults to `gemini-3.1-flash-lite`.
 
 3.  **Generate Keys**:
     If you don't have an nsec, run:
